@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle, Loader2, Heart, Sparkles, Check } from 'lucide-react';
+import { CheckCircle, Loader2, Heart, Sparkles, Check, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Invite } from '../invite';
+import type { Invite, InviteEvent } from '../invite';
 
 interface RSVPFormProps {
   invite: Invite;
@@ -15,13 +15,39 @@ const EVENT_CHOICES = [
   { value: 'hotel', label: 'Hotel Reception only' },
 ];
 
+type MemberChoice = 'both' | 'church' | 'hotel' | 'no';
+
+const MEMBER_CHOICES: Record<InviteEvent, { value: MemberChoice; label: string }[]> = {
+  both: [
+    { value: 'both', label: 'Both' },
+    { value: 'church', label: 'Church only' },
+    { value: 'hotel', label: 'Reception only' },
+    { value: 'no', label: 'Not coming' },
+  ],
+  church: [
+    { value: 'church', label: 'Attending' },
+    { value: 'no', label: 'Not coming' },
+  ],
+  hotel: [
+    { value: 'hotel', label: 'Attending' },
+    { value: 'no', label: 'Not coming' },
+  ],
+};
+
+const SHEET_LABELS: Record<MemberChoice, string> = {
+  both: 'Church & Reception',
+  church: 'Church only',
+  hotel: 'Reception only',
+  no: 'Not coming',
+};
+
 const sectionLabelClass = 'block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-3 ml-2';
 
-const ChoiceButton: React.FC<{ selected: boolean; onClick: () => void; children: React.ReactNode; multi?: boolean }> = ({ selected, onClick, children, multi = false }) => {
+const ChoiceButton: React.FC<{ selected: boolean; onClick: () => void; children: React.ReactNode }> = ({ selected, onClick, children }) => {
   return (
     <button
       type="button"
-      role={multi ? 'checkbox' : 'radio'}
+      role="radio"
       aria-checked={selected}
       onClick={onClick}
       className={`w-full flex items-center gap-4 text-left px-5 py-3.5 rounded-2xl border transition-all duration-300 font-serif text-lg ${
@@ -31,7 +57,7 @@ const ChoiceButton: React.FC<{ selected: boolean; onClick: () => void; children:
       }`}
     >
       <span
-        className={`shrink-0 w-6 h-6 flex items-center justify-center border-[1.5px] transition-all ${multi ? 'rounded-md' : 'rounded-full'} ${
+        className={`shrink-0 w-6 h-6 flex items-center justify-center border-[1.5px] transition-all rounded-full ${
           selected ? 'bg-gradient-to-br from-[#A87D25] via-[#DFBD69] to-[#9A7220] border-transparent' : 'border-stone-300'
         }`}
       >
@@ -46,19 +72,20 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the cel
   const inviteeName = invite.displayName;
   const eventParam = invite.event;
   const { members } = invite;
-  const isCouple = invite.type === 'couple' && members.length === 2;
-  const isFamily = invite.type === 'family' && members.length > 0;
+  // Couples and families answer per person; each picks which event(s) they will attend.
+  const hasMembers = invite.type !== 'single' && members.length > 0;
   // No member list (general link, or old family links) -> pick a head count instead.
-  const useHeadCount = !isCouple && !isFamily && (!inviteeName || invite.type !== 'single');
+  const useHeadCount = !hasMembers && (!inviteeName || invite.type !== 'single');
 
   const [formData, setFormData] = useState({
     fullName: inviteeName,
     guests: '1',
     dietaryNotes: '',
   });
-  // single: 'yes' | 'no'; couple: 'both' | member name | 'no'
-  const [response, setResponse] = useState(isCouple ? 'both' : 'yes');
-  const [familyAttending, setFamilyAttending] = useState<string[]>(members);
+  const [response, setResponse] = useState<'yes' | 'no'>('yes');
+  const [memberChoices, setMemberChoices] = useState<Record<string, MemberChoice>>(
+    () => Object.fromEntries(members.map((m) => [m, eventParam])),
+  );
   const [eventsAttending, setEventsAttending] = useState(eventParam);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const scriptUrl = "https://script.google.com/macros/s/AKfycbyDuWCJjIQ7egU3VZBzAndlosVuJyfZnbGaEKA47SuOcj6iSQQys1ksRSaphGAB37V_/exec";
@@ -69,15 +96,8 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the cel
     }
   }, [inviteeName]);
 
-  const attendees = isFamily
-    ? members.filter((m) => familyAttending.includes(m))
-    : isCouple
-      ? response === 'both' ? members : response === 'no' ? [] : [response]
-      : null;
+  const attendees = hasMembers ? members.filter((m) => memberChoices[m] !== 'no') : null;
   const isAttending = attendees ? attendees.length > 0 : useHeadCount ? formData.guests !== '0' : response === 'yes';
-
-  const toggleFamilyMember = (member: string) =>
-    setFamilyAttending((prev) => (prev.includes(member) ? prev.filter((m) => m !== member) : [...prev, member]));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +105,12 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the cel
 
     try {
       const guestCount = attendees ? attendees.length : useHeadCount ? Number(formData.guests) : isAttending ? 1 : 0;
-      const eventsLabel = isAttending ? EVENT_CHOICES.find((c) => c.value === eventsAttending)?.label ?? '' : '-';
+      let eventsLabel = isAttending ? EVENT_CHOICES.find((c) => c.value === eventsAttending)?.label ?? '' : '-';
+      if (attendees) {
+        const church = attendees.filter((m) => memberChoices[m] !== 'hotel').length;
+        const hotel = attendees.filter((m) => memberChoices[m] !== 'church').length;
+        eventsLabel = isAttending ? `Church: ${church} · Reception: ${hotel}` : '-';
+      }
 
       const payload = new FormData();
       payload.append('sheet', 'RSVP');
@@ -94,7 +119,7 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the cel
       payload.append('dietaryNotes', formData.dietaryNotes);
       payload.append('event', eventParam);
       payload.append('attending', isAttending ? 'Yes' : 'No');
-      payload.append('attendees', attendees ? attendees.join(', ') : '');
+      payload.append('attendees', hasMembers ? members.map((m) => `${m} (${SHEET_LABELS[memberChoices[m]]})`).join(', ') : '');
       payload.append('eventsAttending', eventsLabel);
       payload.append('inviteType', invite.type);
 
@@ -207,40 +232,80 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the cel
                   />
                 </div>
 
-                {isCouple && (
-                  <div role="radiogroup">
-                    <label className={sectionLabelClass}>Who will be attending?</label>
-                    <div className="space-y-2.5">
-                      <ChoiceButton selected={response === 'both'} onClick={() => setResponse('both')}>Both of us will attend</ChoiceButton>
-                      {members.map((member) => (
-                        <ChoiceButton key={member} selected={response === member} onClick={() => setResponse(member)}>
-                          Only {member}
-                        </ChoiceButton>
-                      ))}
-                      <ChoiceButton selected={response === 'no'} onClick={() => setResponse('no')}>Regretfully, we can't attend</ChoiceButton>
-                    </div>
-                  </div>
-                )}
-
-                {isFamily && (
+                {hasMembers && (
                   <div>
-                    <label className={sectionLabelClass}>Please tick everyone who will attend</label>
-                    <div className="space-y-2.5">
+                    <label className={sectionLabelClass}>
+                      {eventParam === 'both' ? 'Who will attend & which events?' : 'Who will be attending?'}
+                    </label>
+                    <div className="space-y-3">
                       {members.map((member) => (
-                        <ChoiceButton key={member} multi selected={familyAttending.includes(member)} onClick={() => toggleFamilyMember(member)}>
-                          {member}
-                        </ChoiceButton>
+                        <div
+                          key={member}
+                          className={`relative bg-white/70 border rounded-2xl px-4 py-3.5 shadow-sm transition-colors duration-300 ${
+                            memberChoices[member] === 'no' ? 'border-stone-200/60' : 'border-brand-plum/40'
+                          }`}
+                        >
+                          <p className="flex items-center gap-2 font-serif italic text-lg text-stone-800 mb-2.5 ml-1">
+                            <Heart
+                              className={`w-3.5 h-3.5 shrink-0 transition-colors ${
+                                memberChoices[member] === 'no' ? 'text-stone-300' : 'text-brand-plum fill-brand-plum/40'
+                              }`}
+                            />
+                            {member}
+                          </p>
+
+                          {/* Mobile: an elegant dropdown */}
+                          <div className="relative sm:hidden">
+                            <select
+                              aria-label={`Attendance for ${member}`}
+                              value={memberChoices[member]}
+                              onChange={(e) => setMemberChoices((prev) => ({ ...prev, [member]: e.target.value as MemberChoice }))}
+                              className={`w-full appearance-none pl-5 pr-11 py-3 rounded-full border font-serif italic text-base outline-none transition-all duration-300 focus:ring-2 focus:ring-brand-lavender/30 ${
+                                memberChoices[member] === 'no'
+                                  ? 'bg-stone-50 border-stone-200 text-stone-500'
+                                  : 'bg-gradient-to-r from-brand-rose/70 via-white to-brand-rose/70 border-brand-plum/40 text-stone-800'
+                              }`}
+                            >
+                              {MEMBER_CHOICES[eventParam].map((choice) => (
+                                <option key={choice.value} value={choice.value}>
+                                  {eventParam === 'both' ? SHEET_LABELS[choice.value] : choice.label}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-plum pointer-events-none" />
+                          </div>
+
+                          {/* Larger screens: tappable pills */}
+                          <div role="radiogroup" aria-label={member} className="hidden sm:flex flex-wrap gap-2">
+                            {MEMBER_CHOICES[eventParam].map((choice) => {
+                              const selected = memberChoices[member] === choice.value;
+                              return (
+                                <button
+                                  key={choice.value}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={selected}
+                                  onClick={() => setMemberChoices((prev) => ({ ...prev, [member]: choice.value }))}
+                                  className={`px-3.5 py-2 rounded-full text-[11px] font-sans font-bold uppercase tracking-[0.1em] border transition-all duration-300 ${
+                                    selected
+                                      ? choice.value === 'no'
+                                        ? 'bg-stone-700 border-stone-700 text-white'
+                                        : 'bg-gradient-to-r from-[#A87D25] via-[#DFBD69] to-[#9A7220] border-transparent text-white shadow-[0_4px_12px_rgba(168,125,37,0.3)]'
+                                      : 'bg-white border-stone-200 text-stone-500 hover:border-brand-plum/50'
+                                  }`}
+                                >
+                                  {choice.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       ))}
                     </div>
-                    {familyAttending.length === 0 && (
-                      <p className="mt-3 ml-2 text-sm font-serif italic text-stone-500">
-                        No one ticked — we'll note that your family is unable to attend.
-                      </p>
-                    )}
                   </div>
                 )}
 
-                {!isCouple && !isFamily && !useHeadCount && (
+                {!hasMembers && !useHeadCount && (
                   <div role="radiogroup">
                     <label className={sectionLabelClass}>Will you be attending?</label>
                     <div className="space-y-2.5">
@@ -272,7 +337,7 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the cel
                   </div>
                 )}
 
-                {eventParam === 'both' && isAttending && (
+                {eventParam === 'both' && isAttending && !hasMembers && (
                   <div role="radiogroup">
                     <label className={sectionLabelClass}>Which will you attend?</label>
                     <div className="space-y-2.5">
