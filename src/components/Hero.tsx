@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'motion/react';
-import { Sparkles, Heart } from 'lucide-react';
+import { Sparkles, Heart, ChevronDown } from 'lucide-react';
 import { FloatingPetals } from './FloatingPetals';
 
 interface HeroProps {
@@ -116,7 +116,7 @@ export const Hero: React.FC<HeroProps> = ({ event = 'both', inviteeName }) => {
         <div className="w-[1px] h-28 bg-gradient-to-b from-transparent via-brand-plum to-transparent" />
         <div className="bg-stone-900/90 backdrop-blur-md px-2.5 py-6 rounded-full border border-brand-plum/40 shadow-xl">
           <p className="writing-mode-vertical text-[11px] uppercase tracking-[0.7em] text-[#EFE7DA] font-bold font-sans">
-            St. Benedict Church • Waikkala
+            {event === 'hotel' ? 'Moonlight Orilla • Nainamadama' : 'St. Benedict Church • Waikkala'}
           </p>
         </div>
         <div className="w-[1px] h-28 bg-gradient-to-t from-transparent via-brand-plum to-transparent" />
@@ -133,13 +133,15 @@ export const Hero: React.FC<HeroProps> = ({ event = 'both', inviteeName }) => {
       </div>
 
       <motion.div
-        className="absolute bottom-0 sm:bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer z-30"
+        className="absolute bottom-20 sm:bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer z-30"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1, duration: 0.6 }}
+        onClick={() => window.scrollBy({ top: window.innerHeight, behavior: 'smooth' })}
       >
-        <span className="text-[9px] sm:text-[10px] font-sans uppercase tracking-[0.5em] text-[#8C6A24] font-extrabold bg-gradient-to-r from-brand-rose via-white to-brand-rose px-5 py-2 rounded-full border border-brand-plum/40 backdrop-blur-md shadow-lg">
-          Discover
+        <span className="flex items-center gap-2 text-[9px] sm:text-[10px] font-sans uppercase tracking-[0.4em] text-[#8C6A24] font-extrabold bg-gradient-to-r from-brand-rose via-white to-brand-rose px-5 py-2 rounded-full border border-brand-plum/40 backdrop-blur-md shadow-lg">
+          Scroll Down
+          <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-bounce" strokeWidth={3} />
         </span>
         <div className="w-[1px] h-6 sm:h-16 bg-gradient-to-b from-brand-plum to-transparent animate-bounce" />
       </motion.div>

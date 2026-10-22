@@ -13,13 +13,20 @@ function doPost(e) {
     const sheet = getOrCreateSheet_(ss, sheetKey);
 
     if (sheetKey === 'RSVP') {
-      ensureHeaders_(sheet, ['Timestamp', 'Full Name', 'Guests', 'Event', 'Dietary Notes']);
+      ensureHeaders_(sheet, [
+        'Timestamp', 'Full Name', 'Guests', 'Invited To', 'Dietary Notes',
+        'Attending', 'Attendees', 'Events Attending', 'Invite Type',
+      ]);
       sheet.appendRow([
         new Date(),
         payload.fullName || '',
         payload.guests || '',
         payload.event || '',
         payload.dietaryNotes || '',
+        payload.attending || '',
+        payload.attendees || '',
+        payload.eventsAttending || '',
+        payload.inviteType || '',
       ]);
     } else {
       ensureHeaders_(sheet, ['Timestamp', 'Name', 'Event', 'Message']);
@@ -101,6 +108,9 @@ function getOrCreateSheet_(ss, name) {
 function ensureHeaders_(sheet, headers) {
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(headers);
+  } else if (sheet.getLastColumn() < headers.length) {
+    // New columns were added later: extend the existing header row.
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
 }
 

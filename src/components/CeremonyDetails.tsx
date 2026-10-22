@@ -7,7 +7,8 @@ interface CeremonyDetailsProps {
 }
 
 export const CeremonyDetails: React.FC<CeremonyDetailsProps> = ({ event = 'both' }) => {
-  const isHomecoming = event === 'homecoming';
+  const showChurch = event !== 'hotel';
+  const showHotel = event !== 'church';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 relative">
@@ -54,6 +55,7 @@ export const CeremonyDetails: React.FC<CeremonyDetailsProps> = ({ event = 'both'
               </div>
 
               {/* Church Ceremony */}
+              {showChurch && (
               <div className="relative group">
                 <div className="absolute top-1/2 -translate-y-1/2 -left-[64px] sm:-left-[74px] w-12 h-12 bg-white rounded-full border border-brand-lavender/40 shadow-lg flex items-center justify-center group-hover:border-brand-plum group-hover:shadow-[0_4px_15px_rgba(176,137,104,0.3)] transition-all duration-500">
                   <Clock className="w-5 h-5 text-brand-plum group-hover:scale-110 transition-transform duration-500" />
@@ -64,7 +66,10 @@ export const CeremonyDetails: React.FC<CeremonyDetailsProps> = ({ event = 'both'
                   </h4>
                   <div className="space-y-1.5 text-stone-500/90 font-serif text-base sm:text-lg">
                     <p>
-                      <span className="font-semibold text-stone-700">Time:</span> 11:00 AM
+                      <span className="font-semibold text-stone-700">Time:</span>{' '}
+                      <span className="font-bold text-stone-800">11:00</span>{' '}
+                      <span className="inline-block align-middle px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#A87D25] via-[#DFBD69] to-[#9A7220] text-white font-sans font-bold text-xs sm:text-sm tracking-[0.15em] shadow-[0_4px_12px_rgba(168,125,37,0.35)]">AM</span>
+                      <span className="ml-2 text-sm italic text-[#A87D25]">(Morning)</span>
                     </p>
                     <p className="leading-relaxed">
                       <span className="font-semibold text-stone-700">Venue:</span> St. Benedict Church,<br className="hidden sm:block" /> Waikkala, Sri Lanka
@@ -72,8 +77,10 @@ export const CeremonyDetails: React.FC<CeremonyDetailsProps> = ({ event = 'both'
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Wedding Function */}
+              {showHotel && (
               <div className="relative group">
                 <div className="absolute top-1/2 -translate-y-1/2 -left-[64px] sm:-left-[74px] w-12 h-12 bg-white rounded-full border border-brand-lavender/40 shadow-lg flex items-center justify-center group-hover:border-brand-plum group-hover:shadow-[0_4px_15px_rgba(176,137,104,0.3)] transition-all duration-500">
                   <MapPin className="w-5 h-5 text-brand-plum group-hover:scale-110 transition-transform duration-500" />
@@ -84,7 +91,10 @@ export const CeremonyDetails: React.FC<CeremonyDetailsProps> = ({ event = 'both'
                   </h4>
                   <div className="space-y-1.5 text-stone-500/90 font-serif text-base sm:text-lg">
                     <p>
-                      <span className="font-semibold text-stone-700">Time:</span> 07:00 PM
+                      <span className="font-semibold text-stone-700">Time:</span>{' '}
+                      <span className="font-bold text-stone-800">07:00</span>{' '}
+                      <span className="inline-block align-middle px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#A87D25] via-[#DFBD69] to-[#9A7220] text-white font-sans font-bold text-xs sm:text-sm tracking-[0.15em] shadow-[0_4px_12px_rgba(168,125,37,0.35)]">PM</span>
+                      <span className="ml-2 text-sm italic text-[#A87D25]">(Evening)</span>
                     </p>
                     <p className="leading-relaxed">
                       <span className="font-semibold text-stone-700">Venue:</span> Moonlight Orilla Hotel,<br className="hidden sm:block" /> Nainamadama, Sri Lanka
@@ -92,6 +102,7 @@ export const CeremonyDetails: React.FC<CeremonyDetailsProps> = ({ event = 'both'
                   </div>
                 </div>
               </div>
+              )}
 
 
             </div>

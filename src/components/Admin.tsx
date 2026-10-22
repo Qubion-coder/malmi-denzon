@@ -1,32 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Copy, Check, Sparkles, User, Link as LinkIcon, ArrowLeft } from 'lucide-react';
+import { Copy, Check, Sparkles, User, Users, Link as LinkIcon, ArrowLeft, Plus, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import { buildInvite, EVENT_LABELS, type InviteType, type InviteEvent } from '../invite';
+
+const labelClass = 'block text-xs uppercase tracking-[0.2em] font-bold text-stone-500 mb-3 flex items-center gap-2 ml-1';
+const inputClass = 'w-full bg-white px-6 py-4 rounded-full border border-stone-200/80 focus:ring-2 focus:ring-brand-lavender/30 focus:border-brand-plum/40 outline-none transition-all font-serif italic text-lg shadow-inner text-stone-800 placeholder:text-stone-400';
+
+function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+  return (
+    <div className="grid gap-2 p-1.5 bg-stone-100/80 rounded-[1.5rem] border border-stone-200/60" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`px-3 py-3 rounded-[1.2rem] text-[11px] sm:text-xs font-bold uppercase tracking-[0.12em] transition-all ${
+            value === opt.value ? 'bg-white text-brand-plum shadow-md border border-brand-plum/30' : 'text-stone-500 hover:text-stone-700'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export const Admin: React.FC = () => {
+  const [inviteType, setInviteType] = useState<InviteType>('single');
   const [guestTitle, setGuestTitle] = useState('Mr.');
+  const [coupleMode, setCoupleMode] = useState<'mrmrs' | 'names'>('mrmrs');
   const [guestName, setGuestName] = useState('');
+  const [partners, setPartners] = useState(['', '']);
+  const [familyMembers, setFamilyMembers] = useState<string[]>(['', '']);
+  const [inviteEvent, setInviteEvent] = useState<InviteEvent>('both');
   const [generatedUrl, setGeneratedUrl] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [copied, setCopied] = useState<'link' | 'message' | null>(null);
 
-  const displayName = guestTitle === 'Family'
-    ? `${guestName.trim()} and Family`
-    : guestTitle === 'Dear'
-      ? guestName.trim()
-      : `${guestTitle} ${guestName.trim()}`.trim();
+  const updateListItem = (list: string[], setList: (l: string[]) => void, index: number, value: string) =>
+    setList(list.map((item, i) => (i === index ? value : item)));
 
   const handleGenerate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!guestName.trim()) {
-      toast.error('Please enter a guest name');
+
+    const isTwoNames = inviteType === 'couple' && coupleMode === 'names';
+    const members = inviteType === 'family' ? familyMembers : isTwoNames ? partners : [];
+    const name = isTwoNames ? partners.map((p) => p.trim()).join(' & ') : guestName.trim();
+
+    if (isTwoNames ? partners.some((p) => !p.trim()) : !name) {
+      toast.error(isTwoNames ? 'Please enter both names' : 'Please enter a guest name');
+      return;
+    }
+    if (inviteType === 'family' && !familyMembers.some((m) => m.trim())) {
+      toast.error('Please add at least one family member');
       return;
     }
 
-    const baseUrl = window.location.origin;
-    const namePath = encodeURIComponent(guestName.trim());
-    const prefix = guestTitle === 'Dear' ? '' : `?prefix=${encodeURIComponent(guestTitle)}`;
-    const fullUrl = `${baseUrl}/${namePath}${prefix}`;
-    setGeneratedUrl(fullUrl);
+    const prefix = inviteType === 'single' ? guestTitle : inviteType === 'couple' && coupleMode === 'mrmrs' ? 'Mr. & Mrs.' : '';
+    const invite = buildInvite({ type: inviteType, prefix, name, members, event: inviteEvent });
+    setGeneratedUrl(invite.url);
+    setDisplayName(invite.displayName);
     setCopied(null);
     toast.success('Invitation link generated successfully!');
   };
@@ -112,43 +146,155 @@ With love,
             <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-brand-rose via-brand-plum to-brand-rose" />
 
             <form onSubmit={handleGenerate} className="space-y-8">
-              {/* Guest Title & Name */}
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs uppercase tracking-[0.2em] font-bold text-stone-500 mb-3 flex items-center gap-2 ml-1">
-                    <User className="w-4 h-4 text-brand-plum" />
-                    Select Prefix
-                  </label>
-                  <select
-                    value={guestTitle}
-                    onChange={(e) => setGuestTitle(e.target.value)}
-                    className="w-full bg-white px-6 py-4 rounded-full border border-stone-200/80 focus:ring-2 focus:ring-brand-lavender/30 focus:border-brand-plum/40 outline-none transition-all font-serif text-lg shadow-inner text-stone-800 cursor-pointer"
-                  >
-                    <option value="Mr.">Mr.</option>
-                    <option value="Mrs.">Mrs.</option>
-                    <option value="Miss">Miss</option>
-                    <option value="Mr. & Mrs.">Mr. & Mrs.</option>
-                    <option value="Family">Family</option>
-                    <option value="Dear">Dear</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs uppercase tracking-[0.2em] font-bold text-stone-500 mb-3 flex items-center gap-2 ml-1">
-                    <User className="w-4 h-4 text-brand-plum" />
-                    Guest Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Sanjaya"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    className="w-full bg-white px-6 py-4 rounded-full border border-stone-200/80 focus:ring-2 focus:ring-brand-lavender/30 focus:border-brand-plum/40 outline-none transition-all font-serif italic text-lg shadow-inner text-stone-800 placeholder:text-stone-400"
-                  />
-                </div>
+              {/* Invite Type */}
+              <div>
+                <label className={labelClass}>
+                  <Users className="w-4 h-4 text-brand-plum" />
+                  Invite Type
+                </label>
+                <Segmented
+                  value={inviteType}
+                  onChange={setInviteType}
+                  options={[
+                    { value: 'single', label: 'One Person' },
+                    { value: 'couple', label: 'Couple' },
+                    { value: 'family', label: 'Family' },
+                  ]}
+                />
               </div>
 
+              {inviteType === 'single' && (
+                <div className="space-y-6">
+                  <div>
+                    <label className={labelClass}>
+                      <User className="w-4 h-4 text-brand-plum" />
+                      Select Prefix
+                    </label>
+                    <select
+                      value={guestTitle}
+                      onChange={(e) => setGuestTitle(e.target.value)}
+                      className="w-full bg-white px-6 py-4 rounded-full border border-stone-200/80 focus:ring-2 focus:ring-brand-lavender/30 focus:border-brand-plum/40 outline-none transition-all font-serif text-lg shadow-inner text-stone-800 cursor-pointer"
+                    >
+                      <option value="Mr.">Mr.</option>
+                      <option value="Mrs.">Mrs.</option>
+                      <option value="Miss">Miss</option>
+                      <option value="Dear">Dear</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>
+                      <User className="w-4 h-4 text-brand-plum" />
+                      Guest Name
+                    </label>
+                    <input type="text" placeholder="e.g. Sanjaya" value={guestName} onChange={(e) => setGuestName(e.target.value)} className={inputClass} />
+                  </div>
+                </div>
+              )}
+
+              {inviteType === 'couple' && (
+                <div className="space-y-6">
+                  <Segmented
+                    value={coupleMode}
+                    onChange={setCoupleMode}
+                    options={[
+                      { value: 'mrmrs', label: 'Mr. & Mrs.' },
+                      { value: 'names', label: 'Two Names' },
+                    ]}
+                  />
+                  {coupleMode === 'mrmrs' ? (
+                    <div>
+                      <label className={labelClass}>
+                        <User className="w-4 h-4 text-brand-plum" />
+                        Name (shown as Mr. & Mrs. ...)
+                      </label>
+                      <input type="text" placeholder="e.g. Sanjaya Perera" value={guestName} onChange={(e) => setGuestName(e.target.value)} className={inputClass} />
+                    </div>
+                  ) : (
+                    partners.map((partner, i) => (
+                      <div key={i}>
+                        <label className={labelClass}>
+                          <User className="w-4 h-4 text-brand-plum" />
+                          {i === 0 ? 'First Name' : 'Second Name'}
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={i === 0 ? 'e.g. Sanjaya' : 'e.g. Nadeesha'}
+                          value={partner}
+                          onChange={(e) => updateListItem(partners, setPartners, i, e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {inviteType === 'family' && (
+                <div className="space-y-6">
+                  <div>
+                    <label className={labelClass}>
+                      <Users className="w-4 h-4 text-brand-plum" />
+                      Family Name (shown as ... and Family)
+                    </label>
+                    <input type="text" placeholder="e.g. Perera" value={guestName} onChange={(e) => setGuestName(e.target.value)} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>
+                      <User className="w-4 h-4 text-brand-plum" />
+                      Family Members
+                    </label>
+                    <div className="space-y-3">
+                      {familyMembers.map((member, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder={`Member ${i + 1}`}
+                            value={member}
+                            onChange={(e) => updateListItem(familyMembers, setFamilyMembers, i, e.target.value)}
+                            className={inputClass}
+                          />
+                          {familyMembers.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setFamilyMembers(familyMembers.filter((_, j) => j !== i))}
+                              className="shrink-0 w-11 h-11 rounded-full border border-stone-200 text-stone-400 hover:text-red-500 hover:border-red-200 flex items-center justify-center transition-colors"
+                              aria-label="Remove member"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFamilyMembers([...familyMembers, ''])}
+                      className="mt-3 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-dashed border-brand-plum/50 text-brand-plum text-xs font-bold uppercase tracking-[0.15em] hover:bg-brand-rose/40 transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Member
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Event Access */}
+              <div>
+                <label className={labelClass}>
+                  <MapPin className="w-4 h-4 text-brand-plum" />
+                  Invited To
+                </label>
+                <Segmented
+                  value={inviteEvent}
+                  onChange={setInviteEvent}
+                  options={[
+                    { value: 'church', label: 'Church' },
+                    { value: 'hotel', label: 'Hotel' },
+                    { value: 'both', label: 'Both' },
+                  ]}
+                />
+                <p className="mt-2 ml-2 text-sm font-serif italic text-stone-500">{EVENT_LABELS[inviteEvent]}</p>
+              </div>
 
               {/* Submit Button */}
               <button

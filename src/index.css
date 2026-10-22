@@ -42,6 +42,15 @@ img {
   -webkit-backdrop-filter: blur(20px);
 }
 
+/* Gradient text only paints inside its box, so cursive/italic swashes on the
+   last letter get cropped. Add breathing room without shifting the layout. */
+.bg-clip-text {
+  padding: 0.05em 0.25em 0.12em 0.1em;
+  margin-inline: -0.1em -0.25em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .writing-mode-vertical {
   writing-mode: vertical-rl;
 }

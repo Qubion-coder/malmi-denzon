@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { InvitationContent } from './components/InvitationContent';
 import { Admin } from './components/Admin';
 import { IntroScreen } from './components/IntroScreen';
+import { parseInvite } from './invite';
 
 const isAdminRoute = () => window.location.pathname === '/admin';
 
@@ -12,22 +13,15 @@ export default function App() {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const params = new URLSearchParams(window.location.search);
-  const pathGuestName = decodeURIComponent(window.location.pathname.slice(1)).trim();
-  const titleParam = params.get('prefix') || params.get('title') || '';
-  const nameParam = params.get('name') || pathGuestName;
-  const eventParam = params.get('event') || 'both';
+  const invite = parseInvite();
+  const eventLabel = invite.event === 'church'
+    ? 'our Wedding Ceremony'
+    : invite.event === 'hotel'
+      ? 'our Wedding Reception'
+      : 'Our Wedding Celebration';
 
-  const normalizedName = nameParam.trim();
-  const fullInviteeName = titleParam === 'Family'
-    ? `${normalizedName} and Family`
-    : titleParam === 'Dear'
-      ? normalizedName
-      : `${titleParam} ${normalizedName}`.trim();
-
-  let eventLabel = 'Our Wedding Celebration';
-
-  const weddingDate = new Date('2026-12-10T11:00:00');
+  // Count down to the first event this guest is invited to.
+  const weddingDate = new Date(invite.event === 'hotel' ? '2026-12-10T19:00:00' : '2026-12-10T11:00:00');
 
   const ensureAudio = useCallback(() => {
     if (!audioRef.current) {
@@ -79,8 +73,7 @@ export default function App() {
 
       <InvitationContent
         active={showInvitation}
-        eventParam={eventParam}
-        fullInviteeName={fullInviteeName}
+        invite={invite}
         eventLabel={eventLabel}
         weddingDate={weddingDate}
         isMusicPlaying={isMusicPlaying}

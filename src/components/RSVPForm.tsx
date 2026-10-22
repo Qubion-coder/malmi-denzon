@@ -1,20 +1,65 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle, Loader2, Heart, Sparkles } from 'lucide-react';
+import { CheckCircle, Loader2, Heart, Sparkles, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Invite } from '../invite';
 
 interface RSVPFormProps {
-  inviteeName?: string;
+  invite: Invite;
   eventName?: string;
-  eventParam?: string;
 }
 
-export const RSVPForm: React.FC<RSVPFormProps> = ({ inviteeName = '', eventName = 'the celebration', eventParam = 'both' }) => {
+const EVENT_CHOICES = [
+  { value: 'both', label: 'Church Ceremony & Hotel Reception' },
+  { value: 'church', label: 'Church Ceremony only' },
+  { value: 'hotel', label: 'Hotel Reception only' },
+];
+
+const sectionLabelClass = 'block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-3 ml-2';
+
+const ChoiceButton: React.FC<{ selected: boolean; onClick: () => void; children: React.ReactNode; multi?: boolean }> = ({ selected, onClick, children, multi = false }) => {
+  return (
+    <button
+      type="button"
+      role={multi ? 'checkbox' : 'radio'}
+      aria-checked={selected}
+      onClick={onClick}
+      className={`w-full flex items-center gap-4 text-left px-5 py-3.5 rounded-2xl border transition-all duration-300 font-serif text-lg ${
+        selected
+          ? 'bg-white border-brand-plum/60 shadow-[0_8px_20px_rgba(168,125,37,0.15)] text-stone-800'
+          : 'bg-white/50 border-stone-200/60 text-stone-500 hover:bg-white/80'
+      }`}
+    >
+      <span
+        className={`shrink-0 w-6 h-6 flex items-center justify-center border-[1.5px] transition-all ${multi ? 'rounded-md' : 'rounded-full'} ${
+          selected ? 'bg-gradient-to-br from-[#A87D25] via-[#DFBD69] to-[#9A7220] border-transparent' : 'border-stone-300'
+        }`}
+      >
+        {selected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+      </span>
+      <span className="italic">{children}</span>
+    </button>
+  );
+};
+
+export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the celebration' }) => {
+  const inviteeName = invite.displayName;
+  const eventParam = invite.event;
+  const { members } = invite;
+  const isCouple = invite.type === 'couple' && members.length === 2;
+  const isFamily = invite.type === 'family' && members.length > 0;
+  // No member list (general link, or old family links) -> pick a head count instead.
+  const useHeadCount = !isCouple && !isFamily && (!inviteeName || invite.type !== 'single');
+
   const [formData, setFormData] = useState({
     fullName: inviteeName,
     guests: '1',
     dietaryNotes: '',
   });
+  // single: 'yes' | 'no'; couple: 'both' | member name | 'no'
+  const [response, setResponse] = useState(isCouple ? 'both' : 'yes');
+  const [familyAttending, setFamilyAttending] = useState<string[]>(members);
+  const [eventsAttending, setEventsAttending] = useState(eventParam);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const scriptUrl = "https://script.google.com/macros/s/AKfycbyDuWCJjIQ7egU3VZBzAndlosVuJyfZnbGaEKA47SuOcj6iSQQys1ksRSaphGAB37V_/exec";
 
@@ -24,18 +69,34 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ inviteeName = '', eventName 
     }
   }, [inviteeName]);
 
+  const attendees = isFamily
+    ? members.filter((m) => familyAttending.includes(m))
+    : isCouple
+      ? response === 'both' ? members : response === 'no' ? [] : [response]
+      : null;
+  const isAttending = attendees ? attendees.length > 0 : useHeadCount ? formData.guests !== '0' : response === 'yes';
+
+  const toggleFamilyMember = (member: string) =>
+    setFamilyAttending((prev) => (prev.includes(member) ? prev.filter((m) => m !== member) : [...prev, member]));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('loading');
 
     try {
+      const guestCount = attendees ? attendees.length : useHeadCount ? Number(formData.guests) : isAttending ? 1 : 0;
+      const eventsLabel = isAttending ? EVENT_CHOICES.find((c) => c.value === eventsAttending)?.label ?? '' : '-';
 
       const payload = new FormData();
       payload.append('sheet', 'RSVP');
       payload.append('fullName', formData.fullName);
-      payload.append('guests', formData.guests);
+      payload.append('guests', String(guestCount));
       payload.append('dietaryNotes', formData.dietaryNotes);
       payload.append('event', eventParam);
+      payload.append('attending', isAttending ? 'Yes' : 'No');
+      payload.append('attendees', attendees ? attendees.join(', ') : '');
+      payload.append('eventsAttending', eventsLabel);
+      payload.append('inviteType', invite.type);
 
       await fetch(scriptUrl, {
         method: 'POST',
@@ -45,7 +106,6 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ inviteeName = '', eventName 
 
       setStatus('success');
       toast.success('Your RSVP has been warmly received!');
-      setFormData({ fullName: inviteeName, guests: '1', dietaryNotes: '' });
     } catch (error) {
       console.error('Error sending RSVP: ', error);
       setStatus('error');
@@ -91,6 +151,10 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ inviteeName = '', eventName 
           </p>
           <div className="mt-6 mb-8 text-sm font-sans tracking-[0.2em] uppercase font-semibold text-brand-plum drop-shadow-sm leading-loose">
             RSVP through the form below
+            <span className="block mt-2 normal-case tracking-[0.1em] text-base sm:text-lg font-serif italic text-stone-700">
+              Kindly respond on or before{' '}
+              <span className="not-italic font-bold bg-gradient-to-r from-[#A87D25] via-[#DFBD69] to-[#9A7220] bg-clip-text text-transparent">15th November 2026</span>
+            </span>
           </div>
           <div className="w-12 h-[1px] bg-brand-lavender/50 mx-auto lg:mx-0" />
         </div>
@@ -111,7 +175,9 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ inviteeName = '', eventName 
                 </div>
                 <h3 className="text-4xl font-display text-stone-800 mb-4 tracking-tight drop-shadow-sm">With Gratitude</h3>
                 <p className="text-stone-500/90 leading-relaxed font-serif text-lg mb-8">
-                  Your response has been warmly received. We cannot wait to celebrate with you!
+                  {isAttending
+                    ? 'Your response has been warmly received. We cannot wait to celebrate with you!'
+                    : 'Your response has been received. You will be missed, and we thank you for your love and blessings.'}
                 </p>
                 <button
                   onClick={() => setStatus('idle')}
@@ -141,24 +207,87 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ inviteeName = '', eventName 
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-3 ml-2">Number of Guests</label>
-                  <div className="relative group">
-                    <select
-                      className="w-full bg-white/80 px-6 py-4 rounded-full border border-stone-200/60 focus:ring-2 focus:ring-brand-lavender/30 focus:border-brand-plum/40 outline-none transition-all duration-300 appearance-none font-serif italic text-lg shadow-inner text-stone-700 cursor-pointer"
-                      value={formData.guests}
-                      onChange={(e) => setFormData({ ...formData, guests: e.target.value })}
-                    >
-                      <option value="1">Just Me (1 Guest)</option>
-                      <option value="2">We are coming! (2 Guests)</option>
-                      <option value="3">3 Guests</option>
-                      <option value="4">4 Guests</option>
-                    </select>
-                    <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-brand-plum transition-transform duration-300 group-hover:scale-110">
-                      <Heart className="w-5 h-5 fill-brand-lavender/30 drop-shadow-sm" />
+                {isCouple && (
+                  <div role="radiogroup">
+                    <label className={sectionLabelClass}>Who will be attending?</label>
+                    <div className="space-y-2.5">
+                      <ChoiceButton selected={response === 'both'} onClick={() => setResponse('both')}>Both of us will attend</ChoiceButton>
+                      {members.map((member) => (
+                        <ChoiceButton key={member} selected={response === member} onClick={() => setResponse(member)}>
+                          Only {member}
+                        </ChoiceButton>
+                      ))}
+                      <ChoiceButton selected={response === 'no'} onClick={() => setResponse('no')}>Regretfully, we can't attend</ChoiceButton>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {isFamily && (
+                  <div>
+                    <label className={sectionLabelClass}>Please tick everyone who will attend</label>
+                    <div className="space-y-2.5">
+                      {members.map((member) => (
+                        <ChoiceButton key={member} multi selected={familyAttending.includes(member)} onClick={() => toggleFamilyMember(member)}>
+                          {member}
+                        </ChoiceButton>
+                      ))}
+                    </div>
+                    {familyAttending.length === 0 && (
+                      <p className="mt-3 ml-2 text-sm font-serif italic text-stone-500">
+                        No one ticked — we'll note that your family is unable to attend.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {!isCouple && !isFamily && !useHeadCount && (
+                  <div role="radiogroup">
+                    <label className={sectionLabelClass}>Will you be attending?</label>
+                    <div className="space-y-2.5">
+                      <ChoiceButton selected={response === 'yes'} onClick={() => setResponse('yes')}>Joyfully accept</ChoiceButton>
+                      <ChoiceButton selected={response === 'no'} onClick={() => setResponse('no')}>Regretfully decline</ChoiceButton>
+                    </div>
+                  </div>
+                )}
+
+                {useHeadCount && (
+                  <div>
+                    <label className={sectionLabelClass}>Number of Guests</label>
+                    <div className="relative group">
+                      <select
+                        className="w-full bg-white/80 px-6 py-4 rounded-full border border-stone-200/60 focus:ring-2 focus:ring-brand-lavender/30 focus:border-brand-plum/40 outline-none transition-all duration-300 appearance-none font-serif italic text-lg shadow-inner text-stone-700 cursor-pointer"
+                        value={formData.guests}
+                        onChange={(e) => setFormData({ ...formData, guests: e.target.value })}
+                      >
+                        <option value="1">Just Me (1 Guest)</option>
+                        <option value="2">We are coming! (2 Guests)</option>
+                        <option value="3">3 Guests</option>
+                        <option value="4">4 Guests</option>
+                        <option value="0">Regretfully, unable to attend</option>
+                      </select>
+                      <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-brand-plum transition-transform duration-300 group-hover:scale-110">
+                        <Heart className="w-5 h-5 fill-brand-lavender/30 drop-shadow-sm" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {eventParam === 'both' && isAttending && (
+                  <div role="radiogroup">
+                    <label className={sectionLabelClass}>Which will you attend?</label>
+                    <div className="space-y-2.5">
+                      {EVENT_CHOICES.map((choice) => (
+                        <ChoiceButton
+                          key={choice.value}
+                          selected={eventsAttending === choice.value}
+                          onClick={() => setEventsAttending(choice.value as typeof eventsAttending)}
+                        >
+                          {choice.label}
+                        </ChoiceButton>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[10px] uppercase tracking-[0.2em] font-bold text-stone-500 mb-3 ml-2">Dietary Notes (Optional)</label>
@@ -179,7 +308,7 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ inviteeName = '', eventName 
                     {status === 'loading' ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      'Confirm Attendance'
+                      isAttending ? 'Confirm Attendance' : 'Send Our Regrets'
                     )}
                   </button>
                 </div>

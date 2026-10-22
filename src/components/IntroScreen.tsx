@@ -99,7 +99,7 @@ export function IntroScreen({ onComplete, onMusicStart }: IntroScreenProps) {
         initial={false}
         animate={{ x: opening ? '-100%' : 0, scale: 1.35 }}
         transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1] }}
-        className="pointer-events-none absolute inset-y-0 left-0 z-20 h-[100dvh] w-1/2 origin-center object-cover object-center"
+        className="pointer-events-none absolute inset-y-0 left-0 z-20 h-[100dvh] w-1/2 origin-right object-cover object-center"
       />
       <motion.img
         src="/door-right.webp"
@@ -108,7 +108,7 @@ export function IntroScreen({ onComplete, onMusicStart }: IntroScreenProps) {
         initial={false}
         animate={{ x: opening ? '100%' : 0, scale: 1.35 }}
         transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1] }}
-        className="pointer-events-none absolute inset-y-0 right-0 z-20 h-[100dvh] w-1/2 origin-center object-cover object-center"
+        className="pointer-events-none absolute inset-y-0 right-0 z-20 h-[100dvh] w-1/2 origin-left object-cover object-center"
       />
     </main>
   );

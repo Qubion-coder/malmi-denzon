@@ -11,11 +11,11 @@ import { RSVPForm } from './RSVPForm';
 import { WishesSection } from './WishesSection';
 import { InviteeBanner } from './InviteeBanner';
 import { DeferredMount } from './DeferredMount';
+import type { Invite } from '../invite';
 
 interface InvitationContentProps {
   active: boolean;
-  eventParam: string;
-  fullInviteeName: string;
+  invite: Invite;
   eventLabel: string;
   weddingDate: Date;
   isMusicPlaying: boolean;
@@ -24,14 +24,16 @@ interface InvitationContentProps {
 
 export function InvitationContent({
   active,
-  eventParam,
-  fullInviteeName,
+  invite,
   eventLabel,
   weddingDate,
   isMusicPlaying,
   onToggleMusic,
 }: InvitationContentProps) {
   if (!active) return null;
+
+  const eventParam = invite.event;
+  const fullInviteeName = invite.displayName;
 
   return (
     <motion.div
@@ -89,7 +91,13 @@ export function InvitationContent({
         </div>
       </DeferredMount>
 
-
+      {eventParam !== 'church' && (
+        <DeferredMount active={active} delay={300} minHeight="40vh">
+          <div className="py-24 sm:py-32 bg-gradient-to-b from-brand-blush via-white to-brand-blush relative overflow-hidden">
+            <Timeline />
+          </div>
+        </DeferredMount>
+      )}
 
       <DeferredMount active={active} delay={360} minHeight="20vh">
         <div className="py-24 sm:py-32 relative overflow-hidden">
@@ -113,7 +121,7 @@ export function InvitationContent({
 
       <DeferredMount active={active} delay={420} minHeight="30vh">
         <div className="py-24 sm:py-32 bg-brand-blush relative overflow-hidden">
-          <RSVPForm inviteeName={fullInviteeName} eventName={eventLabel} eventParam={eventParam} />
+          <RSVPForm invite={invite} eventName={eventLabel} />
         </div>
       </DeferredMount>
 

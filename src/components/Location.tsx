@@ -26,7 +26,7 @@ export const Location: React.FC<LocationProps> = ({ event = 'both' }) => {
       imageUrl: "/Screenshot%202026-10-13%20003003.png",
       label: "The Reception"
     }
-  ];
+  ].filter((venue) => event === 'both' || (event === 'church' ? venue.id === 'ceremony' : venue.id === 'reception'));
 
   return (
     <div className="max-w-[85rem] mx-auto px-6 relative pt-12 pb-0 lg:py-12">
