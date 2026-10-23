@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle, Loader2, Heart, Sparkles, Check, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { SCRIPT_URL } from '../config';
 import type { Invite, InviteEvent } from '../invite';
 
 interface RSVPFormProps {
@@ -88,7 +89,6 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the cel
   );
   const [eventsAttending, setEventsAttending] = useState(eventParam);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const scriptUrl = "https://script.google.com/macros/s/AKfycbyDuWCJjIQ7egU3VZBzAndlosVuJyfZnbGaEKA47SuOcj6iSQQys1ksRSaphGAB37V_/exec";
 
   useEffect(() => {
     if (inviteeName) {
@@ -123,7 +123,7 @@ export const RSVPForm: React.FC<RSVPFormProps> = ({ invite, eventName = 'the cel
       payload.append('eventsAttending', eventsLabel);
       payload.append('inviteType', invite.type);
 
-      await fetch(scriptUrl, {
+      await fetch(SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         body: payload,
