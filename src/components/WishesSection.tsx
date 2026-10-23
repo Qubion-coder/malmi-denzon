@@ -84,8 +84,8 @@ export const WishesSection: React.FC<WishesSectionProps> = ({ eventParam = 'both
         <span className="text-brand-plum uppercase tracking-[0.5em] text-[10px] font-bold mb-4 block drop-shadow-sm">
           Guestbook
         </span>
-        <h2 className="text-5xl sm:text-7xl font-display text-black tracking-tight drop-shadow-sm">
-          Blessings & <span className="italic font-light">Wishes</span>
+        <h2 className="text-5xl sm:text-7xl font-display tracking-tight drop-shadow-sm">
+          <span className="bg-gradient-to-r from-[#A87D25] via-[#DFBD69] to-[#9A7220] bg-clip-text text-transparent">Blessings &amp; <span className="italic font-light">Wishes</span></span>
         </h2>
         <div className="w-16 h-[1px] bg-gradient-to-r from-transparent via-brand-plum/40 to-transparent mx-auto mt-8" />
       </div>
