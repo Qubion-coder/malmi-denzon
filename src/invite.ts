@@ -32,7 +32,11 @@ const formatDisplayName = (prefix: string, name: string) =>
       ? name
       : `${prefix} ${name}`.trim();
 
-const normalizeEvent = (value: string | null): InviteEvent =>
+// Chat apps drop a trailing "." from links, so "Mr. & Mrs." can arrive as "Mr. & Mrs".
+const normalizePrefix = (value: string) =>
+  ({ 'Mr': 'Mr.', 'Mrs': 'Mrs.', 'Mr. & Mrs': 'Mr. & Mrs.', 'Mr & Mrs': 'Mr. & Mrs.' } as Record<string, string>)[value.trim()] ?? value.trim();
+
+const normalizeEvent =(value: string | null): InviteEvent =>
   value === 'church' || value === 'hotel' ? value : 'both';
 
 /** Reads the invitation details from the current URL. Old links (name + prefix only) still work. */
@@ -40,7 +44,7 @@ export function parseInvite(): Invite {
   const params = new URLSearchParams(window.location.search);
   const pathName = decodeURIComponent(window.location.pathname.slice(1)).trim();
   const name = (params.get('name') || pathName).trim();
-  const prefix = params.get('prefix') || params.get('title') || '';
+  const prefix = normalizePrefix(params.get('prefix') || params.get('title') || '');
   const members = params.getAll('m').map((m) => m.trim()).filter(Boolean);
 
   let type: InviteType = (params.get('type') as InviteType) || 'single';
@@ -74,7 +78,8 @@ export function buildInvite(input: InviteInput): { url: string; displayName: str
   }
   if (input.event !== 'both') params.set('event', input.event);
 
-  const query = params.toString();
+  // Encode a trailing "." so chat apps keep it as part of the link.
+  const query = params.toString().replace(/\.$/, '%2E');
   return {
     url: `${window.location.origin}/${encodeURIComponent(name)}${query ? `?${query}` : ''}`,
     displayName: formatDisplayName(prefix, name),
